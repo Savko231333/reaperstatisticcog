@@ -71,7 +71,7 @@ class ReaperStatisticCog(commands.Cog):
                             internal_logs.append(log)
                             with open(message_logs_path, "w+") as logs:
                                 logs.write(json.dumps(internal_logs))
-                            i += 1
+                        i += 1
                 if i != 0:
                     data = [member.display_name, str(i)]
                     self.internal_data.append(data)
