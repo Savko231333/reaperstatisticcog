@@ -12,7 +12,7 @@ logger_params_path = os.path.join(os.path.dirname(__file__), "logger_params.json
 logs_path = os.path.join(os.path.dirname(__file__), "logs")
 class ReaperStatisticCog(commands.Cog):
     default_listener_params = {"started": "False", "channel_id": "", "role_id": "", "start_date": "", "message_logs": "True"}
-    listener_params = {"started": "False", "channel_id": "", "role_id": "", "start_date": "", "message_logs": "True"}
+    listener_params = default_listener_params
     internal_data = [[]]
 
     @commands.Cog.listener()
