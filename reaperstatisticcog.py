@@ -147,10 +147,12 @@ class ReaperStatisticCog(commands.Cog):
             with open(member_data_path, "r") as data_file:
                 self.internal_data = json.loads(data_file.read())
             for member_data in self.internal_data:
-                if member_data[0] == message.author.display_name:
-                    s = int(member_data[1])
-                    s += 1
-                    member_data[1] = str(s)
+                if member_data[0] != message.author.display_name:
+                    continue
+                
+                s = int(member_data[1])
+                s += 1
+                member_data[1] = str(s)
             with open(member_data_path, "w+") as data_file:
                 data_file.write(json.dumps(self.internal_data))
     
