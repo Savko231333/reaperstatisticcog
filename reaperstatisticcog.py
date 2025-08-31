@@ -137,9 +137,10 @@ class ReaperStatisticCog(commands.Cog):
         channel = discord.utils.get(message.guild.channels, id=self.listener_params["channel_id"])
         role = discord.utils.get(message.guild.roles, id=self.listener_params['role_id'])
         for member in role.members:
-            if message.author.id != member.id and message.channel.id != channel.id:
+            if message.author.id != member.id or message.channel.id != channel.id:
                 continue
 
+            print(f"{member.name} на сообщении")
             message_logs_path = self.create_message_logs_path(message)
 
             self.write_logs(message_logs_path, str(message.created_at), member.name)
