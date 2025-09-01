@@ -15,6 +15,9 @@ class ReaperStatisticCog(commands.Cog):
     listener_params = default_listener_params
     internal_data = [[]]
 
+    def __init__(self, bot):
+        self.bot = bot
+
     @commands.Cog.listener()
     async def on_ready(self):
         if not os.path.exists(logs_path):
@@ -37,10 +40,10 @@ class ReaperStatisticCog(commands.Cog):
                            role: Option(discord.Role, name="role", description="Роль для логирования"), 
                            channel: Option(discord.TextChannel, name="text_channel", description="Текстовый канал для логирования"),
                            start_date_str: Option(str, name="start_date", description="Время для начала логирования в формате 'ГГГГ-ММ-ДД'")):
-        await ctx.defer()
+        await ctx.defer(ephemeral=True)
 
         if self.listener_params["started"] == "True":
-            await ctx.followup.send("История уже была записана")
+            await ctx.respond("История уже была записана", ephemeral=True)
             return
         
         self.listener_params['channel_id'] = channel.id
@@ -49,19 +52,16 @@ class ReaperStatisticCog(commands.Cog):
             
         self.internal_data.clear()
 
-        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
         for member in role.members:
             i = 0
-            async for message in channel.history(limit=None):
-                if message.created_at.date() <= start_date:
-                    break
-
+            async for message in channel.history(limit=None, after=start_date):
                 if message.author.id != member.id:
                     continue
 
                 if self.listener_params['message_logs'] == "True":
                     message_logs_path = self.create_message_logs_path(message)
-                    self.write_logs(message_logs_path, str(message.created_at), member.name)
+                    self.write_logs(message_logs_path, member.name, str(message.created_at))
 
                 i += 1
 
@@ -77,7 +77,7 @@ class ReaperStatisticCog(commands.Cog):
         with open(logger_params_path, "w") as params:
             params.write(json.dumps(self.listener_params))
 
-        await ctx.followup.send(f"История записана! Логирование: {self.listener_params['message_logs']}", ephemeral=True)
+        await ctx.respond(f"История записана! Логирование: {self.listener_params['message_logs']}", ephemeral=True)
 
 
     @commands.slash_command(
@@ -97,14 +97,14 @@ class ReaperStatisticCog(commands.Cog):
             description=f"Кол-во сообщений каждого участника роли {role.name} в канале {channel.name} за период с {start_date} по {datetime.now().strftime("%Y-%m-%d")}",
             color=discord.Color.dark_gray() 
         )
-        await ctx.defer()
+        await ctx.defer(ephemeral=True)
 
         with open(member_data_path, "r") as data:
             data_list: list[list] = json.loads(data.read())
             for data in data_list:
                 embed.add_field(name=data[0], value=f"Кол-во сообщений: {data[1]}", inline=False)
 
-        await ctx.followup.send(embed=embed, ephemeral=True)
+        await ctx.respond(embed=embed, ephemeral=True)
 
     @commands.slash_command(
     name="delete_listener",
@@ -112,10 +112,10 @@ class ReaperStatisticCog(commands.Cog):
     )
     async def delete_listener(self, ctx: discord.ApplicationContext):
         if self.listener_params['started'] == "False":
-            await ctx.respond("Вы не начали слушание канала")
+            await ctx.respond("Вы не начали слушание канала", ephemeral=True)
             return
         
-        await ctx.defer()
+        await ctx.defer(ephemeral=True)
 
         if os.path.exists(logs_path):
             shutil.rmtree(str(logs_path))
@@ -127,34 +127,37 @@ class ReaperStatisticCog(commands.Cog):
                 params.write(json.dumps(self.default_listener_params))
                 self.listener_params = self.default_listener_params
 
-        await ctx.followup.send("Слушание канала и информация о пользователях удалена!", ephemeral=True)
+        await ctx.respond("Слушание канала и информация о пользователях удалена!", ephemeral=True)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         if self.listener_params['started'] == "False":
             return
         
+        if message.flags.ephemeral:
+            return
+
         channel = discord.utils.get(message.guild.channels, id=self.listener_params["channel_id"])
         role = discord.utils.get(message.guild.roles, id=self.listener_params['role_id'])
-        for member in role.members:
-            if message.author.id != member.id or message.channel.id != channel.id:
+
+        if not role in message.author.roles or message.channel != channel:
+            return
+        
+        message_logs_path = self.create_message_logs_path(message)
+
+        self.write_logs(message_logs_path, message.author.name, str(message.created_at))
+
+        with open(member_data_path, "r") as data_file:
+            self.internal_data = json.loads(data_file.read())
+        for member_data in self.internal_data:
+            if member_data[0] != message.author.display_name:
                 continue
-            
-            message_logs_path = self.create_message_logs_path(message)
-
-            self.write_logs(message_logs_path, str(message.created_at), member.name)
-
-            with open(member_data_path, "r") as data_file:
-                self.internal_data = json.loads(data_file.read())
-            for member_data in self.internal_data:
-                if member_data[0] != message.author.display_name:
-                    continue
                 
-                s = int(member_data[1])
-                s += 1
-                member_data[1] = str(s)
-            with open(member_data_path, "w+") as data_file:
-                data_file.write(json.dumps(self.internal_data))
+            s = int(member_data[1])
+            s += 1
+            member_data[1] = str(s)
+        with open(member_data_path, "w+") as data_file:
+            data_file.write(json.dumps(self.internal_data))
     
 
     def write_logs(self, logs_path: str, member_name: str, message_create_time: str):
@@ -163,9 +166,6 @@ class ReaperStatisticCog(commands.Cog):
             with open(logs_path, "r") as logs:
                 temp: list[list] = json.loads(logs.read())
                 internal_logs = temp
-        else:
-            with open(logs_path, "w"):
-                log = [member_name, message_create_time]
 
         log = [member_name, message_create_time]
         internal_logs.append(log)
