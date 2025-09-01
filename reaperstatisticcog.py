@@ -77,7 +77,7 @@ class ReaperStatisticCog(commands.Cog):
         with open(logger_params_path, "w") as params:
             params.write(json.dumps(self.listener_params))
 
-        await ctx.followup.send(f"История записана! Логирование: {self.listener_params['message_logs']}")
+        await ctx.followup.send(f"История записана! Логирование: {self.listener_params['message_logs']}", ephemeral=True)
 
 
     @commands.slash_command(
@@ -104,7 +104,7 @@ class ReaperStatisticCog(commands.Cog):
             for data in data_list:
                 embed.add_field(name=data[0], value=f"Кол-во сообщений: {data[1]}", inline=False)
 
-        await ctx.followup.send(embed=embed)
+        await ctx.followup.send(embed=embed, ephemeral=True)
 
     @commands.slash_command(
     name="delete_listener",
@@ -127,7 +127,7 @@ class ReaperStatisticCog(commands.Cog):
                 params.write(json.dumps(self.default_listener_params))
                 self.listener_params = self.default_listener_params
 
-        await ctx.followup.send("Слушание канала и информация о пользователях удалена!")
+        await ctx.followup.send("Слушание канала и информация о пользователях удалена!", ephemeral=True)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -139,8 +139,7 @@ class ReaperStatisticCog(commands.Cog):
         for member in role.members:
             if message.author.id != member.id or message.channel.id != channel.id:
                 continue
-
-            print(f"{member.name} на сообщении")
+            
             message_logs_path = self.create_message_logs_path(message)
 
             self.write_logs(message_logs_path, str(message.created_at), member.name)
