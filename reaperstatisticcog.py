@@ -15,9 +15,6 @@ class ReaperStatisticCog(commands.Cog):
     listener_params = default_listener_params
     internal_data = [[]]
 
-    def __init__(self, bot):
-        self.bot = bot
-
     @commands.Cog.listener()
     async def on_ready(self):
         if not os.path.exists(logs_path):
