@@ -4,7 +4,6 @@ from discord import Option
 
 import os
 import json
-import shutil
 from datetime import datetime
 
 member_data_path = os.path.join(os.path.dirname(__file__), "member_data.json")
