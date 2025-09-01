@@ -9,16 +9,14 @@ from datetime import datetime
 
 member_data_path = os.path.join(os.path.dirname(__file__), "member_data.json")
 logger_params_path = os.path.join(os.path.dirname(__file__), "logger_params.json")
-logs_path = os.path.join(os.path.dirname(__file__), "logs")
+logs_path = os.path.join(os.path.dirname(__file__), "logs.json")
 class ReaperStatisticCog(commands.Cog):
     default_listener_params = {"started": "False", "channel_id": "", "role_id": "", "start_date": "", "message_logs": "True"}
     listener_params = default_listener_params
     internal_data = [[]]
-
+    internal_logs = [[]]
     @commands.Cog.listener()
     async def on_ready(self):
-        if not os.path.exists(logs_path):
-            os.mkdir(logs_path)
 
         if os.path.exists(logger_params_path):
             with open(logger_params_path, "r") as params:
@@ -48,8 +46,12 @@ class ReaperStatisticCog(commands.Cog):
         self.listener_params['start_date'] = start_date_str
             
         self.internal_data.clear()
+        self.internal_logs.clear()\
 
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+
+        self.read_logs()
+
         for member in role.members:
             i = 0
             async for message in channel.history(limit=None, after=start_date):
@@ -57,8 +59,8 @@ class ReaperStatisticCog(commands.Cog):
                     continue
 
                 if self.listener_params['message_logs'] == "True":
-                    message_logs_path = self.create_message_logs_path(message)
-                    self.write_logs(message_logs_path, member.name, str(message.created_at))
+                    log = [member.name, str(message.created_at)]
+                    self.internal_logs.append(log)
 
                 i += 1
 
@@ -69,6 +71,8 @@ class ReaperStatisticCog(commands.Cog):
                     data_file.write(json.dumps(self.internal_data))
                 with open(member_data_path, "r") as data_file:
                     self.internal_data = json.loads(data_file.read())
+
+        self.save_logs()
 
         self.listener_params['started'] = "True"
         with open(logger_params_path, "w") as params:
@@ -115,8 +119,7 @@ class ReaperStatisticCog(commands.Cog):
         await ctx.defer(ephemeral=True)
 
         if os.path.exists(logs_path):
-            shutil.rmtree(str(logs_path))
-            os.mkdir(logs_path)
+            os.remove(logs_path)
         if os.path.exists(member_data_path):
             os.remove(member_data_path)
         if os.path.exists(logger_params_path):
@@ -140,12 +143,17 @@ class ReaperStatisticCog(commands.Cog):
         if not role in message.author.roles or message.channel != channel:
             return
         
-        message_logs_path = self.create_message_logs_path(message)
+        self.read_logs()
 
-        self.write_logs(message_logs_path, message.author.name, str(message.created_at))
+        if self.listener_params['message_logs'] == "True":
+            log = [message.author.name, str(message.created_at)]
+            self.internal_logs.append(log)
+        
+        self.save_logs()
 
         with open(member_data_path, "r") as data_file:
             self.internal_data = json.loads(data_file.read())
+
         for member_data in self.internal_data:
             if member_data[0] != message.author.display_name:
                 continue
@@ -155,27 +163,13 @@ class ReaperStatisticCog(commands.Cog):
             member_data[1] = str(s)
         with open(member_data_path, "w+") as data_file:
             data_file.write(json.dumps(self.internal_data))
-    
 
-    def write_logs(self, logs_path: str, member_name: str, message_create_time: str):
-        internal_logs = [[]]
+    def read_logs(self):
         if os.path.exists(logs_path):
             with open(logs_path, "r") as logs:
                 temp: list[list] = json.loads(logs.read())
-                internal_logs = temp
-
-        log = [member_name, message_create_time]
-        internal_logs.append(log)
+                self.internal_logs = temp
+    
+    def save_logs(self): 
         with open(logs_path, "w+") as logs:
-            logs.write(json.dumps(internal_logs))
-
-
-    def create_message_logs_path(self, message: discord.Message) -> str:
-        month_year_log_str = f"{message.created_at.date().year}_{message.created_at.date().month}"
-        monthly_logs_path = os.path.join(logs_path, f"logs_{month_year_log_str}")
-
-        if not os.path.exists(monthly_logs_path):
-            os.mkdir(monthly_logs_path)
-
-        message_logs_path = os.path.join(monthly_logs_path, f"message_logs_{message.created_at.date()}.json")
-        return message_logs_path
+            logs.write(json.dumps(self.internal_logs))
