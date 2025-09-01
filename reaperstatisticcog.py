@@ -46,7 +46,7 @@ class ReaperStatisticCog(commands.Cog):
         self.listener_params['start_date'] = start_date_str
             
         self.internal_data.clear()
-        self.internal_logs.clear()\
+        self.internal_logs.clear()
 
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
 
