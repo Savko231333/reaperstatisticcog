@@ -68,8 +68,6 @@ class ReaperStatisticCog(commands.Cog):
                 self.internal_data.append(data)
                 with open(member_data_path, "w+") as data_file:
                     data_file.write(json.dumps(self.internal_data))
-                with open(member_data_path, "r") as data_file:
-                    self.internal_data = json.loads(data_file.read())
 
         self.save_logs()
 
