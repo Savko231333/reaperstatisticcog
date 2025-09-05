@@ -155,7 +155,9 @@ class ReaperStatisticCog(commands.Cog):
             self.internal_data = json.loads(data_file.read())
 
         for member_data in self.internal_data:
-            if member_data[0] != message.author.display_name:
+            if message.author.id not in member_data:
+                data = [message.author.id, str(1)] #<- Just 1 message :o
+                self.internal_data.append(data)
                 continue
                 
             s = int(member_data[1])
