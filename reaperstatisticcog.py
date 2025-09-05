@@ -10,7 +10,7 @@ member_data_path = os.path.join(os.path.dirname(__file__), "member_data.json")
 logger_params_path = os.path.join(os.path.dirname(__file__), "logger_params.json")
 logs_path = os.path.join(os.path.dirname(__file__), "logs.json")
 class ReaperStatisticCog(commands.Cog):
-    default_listener_params = {"started": "False", "channel_id": "", "role_id": "", "start_date": "", "message_logs": "True"}
+    default_listener_params = {"started": "False", "channel_id": "", "role_id": "", "start_date": "", "message_logs": "True", "message_data": "True"}
     listener_params = default_listener_params
     internal_data = [[]]
     internal_logs = [[]]
@@ -50,6 +50,7 @@ class ReaperStatisticCog(commands.Cog):
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
 
         self.read_logs()
+        self.read_data()
 
         for member in role.members:
             i = 0
@@ -63,19 +64,18 @@ class ReaperStatisticCog(commands.Cog):
 
                 i += 1
 
-            if i != 0:
-                data = [member.display_name, str(i)]
+            if self.listener_params["message_data"] == "True" and i != 0:
+                data = [member.id, str(i)]
                 self.internal_data.append(data)
-                with open(member_data_path, "w+") as data_file:
-                    data_file.write(json.dumps(self.internal_data))
 
         self.save_logs()
+        self.save_data()
 
         self.listener_params['started'] = "True"
         with open(logger_params_path, "w") as params:
             params.write(json.dumps(self.listener_params))
 
-        await ctx.respond(f"История записана! Логирование: {self.listener_params['message_logs']}", ephemeral=True)
+        await ctx.respond(f"История записана! Логирование: {self.listener_params['message_logs']}. Данные пользователей: {self.listener_params["message_data"]}", ephemeral=True)
 
 
     @commands.slash_command(
@@ -99,8 +99,11 @@ class ReaperStatisticCog(commands.Cog):
 
         with open(member_data_path, "r") as data:
             data_list: list[list] = json.loads(data.read())
+            i = 1
             for data in data_list:
-                embed.add_field(name=data[0], value=f"Кол-во сообщений: {data[1]}", inline=False)
+                member = discord.utils.get(role.members, id=data[0])
+                embed.add_field(name=f"Участник {i}", value=f"{member.mention} Кол-во сообщений: {data[1]}", inline=True)
+                i += 1
 
         await ctx.respond(embed=embed, ephemeral=True)
 
@@ -170,3 +173,13 @@ class ReaperStatisticCog(commands.Cog):
     def save_logs(self): 
         with open(logs_path, "w+") as logs:
             logs.write(json.dumps(self.internal_logs))
+
+    def read_data(self):
+        if os.path.exists(member_data_path):
+            with open(member_data_path, "r") as data_file:
+                temp: list[list] = json.loads(data_file.read())
+                self.internal_logs = temp
+    
+    def save_data(self): 
+        with open(member_data_path, "w+") as data_file:
+            data_file.write(json.dumps(self.internal_data))
