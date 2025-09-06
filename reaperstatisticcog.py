@@ -150,9 +150,7 @@ class ReaperStatisticCog(commands.Cog):
             self.internal_logs.append(log)
         
         self.save_logs()
-
-        with open(member_data_path, "r") as data_file:
-            self.internal_data = json.loads(data_file.read())
+        self.read_data()
 
         for member_data in self.internal_data:
             if message.author.id not in member_data:
@@ -163,8 +161,8 @@ class ReaperStatisticCog(commands.Cog):
             s = int(member_data[1])
             s += 1
             member_data[1] = str(s)
-        with open(member_data_path, "w+") as data_file:
-            data_file.write(json.dumps(self.internal_data))
+
+        self.save_data()
 
     def read_logs(self):
         if os.path.exists(logs_path):
