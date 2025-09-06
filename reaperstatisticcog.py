@@ -151,16 +151,17 @@ class ReaperStatisticCog(commands.Cog):
         
         self.save_logs()
         self.read_data()
+        if self.listener_params['message_data'] == "True":
+            new_data_needed = True
+            
+            for member_data in self.internal_data:
+                if message.author.id in member_data:
+                    new_data_needed = False
+                    member_data[1] = str(int(member_data[1]) + 1)
 
-        for member_data in self.internal_data:
-            if message.author.id not in member_data:
-                data = [message.author.id, str(1)] #<- Just 1 message :o
+            if new_data_needed:
+                data = [message.author.id, str(1)]
                 self.internal_data.append(data)
-                continue
-                
-            s = int(member_data[1])
-            s += 1
-            member_data[1] = str(s)
 
         self.save_data()
 
