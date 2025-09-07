@@ -52,21 +52,27 @@ class ReaperStatisticCog(commands.Cog):
         self.read_logs()
         self.read_data()
 
-        for member in role.members:
-            i = 0
-            async for message in channel.history(limit=None, after=start_date):
+
+        async for message in channel.history(limit=None, after=start_date):
+            for member in role.members:
                 if message.author.id != member.id:
                     continue
+                
+                new_data_needed = True
 
                 if self.listener_params['message_logs'] == "True":
                     log = [member.name, str(message.created_at)]
                     self.internal_logs.append(log)
 
-                i += 1
+                if self.listener_params["message_data"] == "True":
+                    for member_data in self.internal_data:
+                        if message.author.id in member_data:
+                            new_data_needed = False
+                            member_data[1] = str(int(member_data[1]) + 1)
 
-            if self.listener_params["message_data"] == "True" and i != 0:
-                data = [member.id, str(i)]
-                self.internal_data.append(data)
+                    if new_data_needed:
+                        data = [message.author.id, str(1)]
+                        self.internal_data.append(data)
 
         self.save_logs()
         self.save_data()
@@ -144,16 +150,15 @@ class ReaperStatisticCog(commands.Cog):
             return
         
         self.read_logs()
+        self.read_data()
 
         if self.listener_params['message_logs'] == "True":
             log = [message.author.name, str(message.created_at)]
             self.internal_logs.append(log)
-        
-        self.save_logs()
-        self.read_data()
+
         if self.listener_params['message_data'] == "True":
             new_data_needed = True
-            
+
             for member_data in self.internal_data:
                 if message.author.id in member_data:
                     new_data_needed = False
@@ -163,6 +168,7 @@ class ReaperStatisticCog(commands.Cog):
                 data = [message.author.id, str(1)]
                 self.internal_data.append(data)
 
+        self.save_logs()
         self.save_data()
 
     def read_logs(self):
