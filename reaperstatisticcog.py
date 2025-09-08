@@ -12,7 +12,7 @@ logs_path = os.path.join(os.path.dirname(__file__), "logs.json")
 class ReaperStatisticCog(commands.Cog):
     default_listener_params = {"started": "False", "channel_id": "", "role_id": "", "start_date": "", "message_logs": "True", "message_data": "True"}
     listener_params = default_listener_params
-    internal_data = [[]]
+    internal_data = {str: int}
     internal_logs = [[]]
     @commands.Cog.listener()
     async def on_ready(self):
@@ -54,25 +54,18 @@ class ReaperStatisticCog(commands.Cog):
 
 
         async for message in channel.history(limit=None, after=start_date):
-            for member in role.members:
-                if message.author.id != member.id:
-                    continue
-                
-                new_data_needed = True
+            if message.author not in role.members:
+                continue
 
-                if self.listener_params['message_logs'] == "True":
-                    log = [member.name, str(message.created_at)]
-                    self.internal_logs.append(log)
+            if self.listener_params['message_logs'] == "True":
+                log = [message.author.name, str(message.created_at)]
+                self.internal_logs.append(log)
 
-                if self.listener_params["message_data"] == "True":
-                    for member_data in self.internal_data:
-                        if message.author.id in member_data:
-                            new_data_needed = False
-                            member_data[1] = str(int(member_data[1]) + 1)
-
-                    if new_data_needed:
-                        data = [message.author.id, str(1)]
-                        self.internal_data.append(data)
+            if self.listener_params["message_data"] == "True":
+                if self.internal_data.get(str(message.author.id), False):
+                    self.internal_data[str(message.author.id)] += 1
+                else:
+                    self.internal_data[str(message.author.id)] = 1
 
         self.save_logs()
         self.save_data()
@@ -103,13 +96,12 @@ class ReaperStatisticCog(commands.Cog):
         )
         await ctx.defer(ephemeral=True)
 
-        with open(member_data_path, "r") as data:
-            data_list: list[list] = json.loads(data.read())
-            i = 1
-            for data in data_list:
-                member = discord.utils.get(role.members, id=data[0])
-                embed.add_field(name=f"Участник {i}", value=f"{member.mention} Кол-во сообщений: {data[1]}", inline=True)
-                i += 1
+        self.read_data()
+
+        i = 1
+        for member in role.members:
+            embed.add_field(name=f"Участник {i}", value=f"{member.mention} Кол-во сообщений: {self.internal_data[str(member.id)]}")
+            i += 1
 
         await ctx.respond(embed=embed, ephemeral=True)
 
@@ -157,16 +149,10 @@ class ReaperStatisticCog(commands.Cog):
             self.internal_logs.append(log)
 
         if self.listener_params['message_data'] == "True":
-            new_data_needed = True
-
-            for member_data in self.internal_data:
-                if message.author.id in member_data:
-                    new_data_needed = False
-                    member_data[1] = str(int(member_data[1]) + 1)
-
-            if new_data_needed:
-                data = [message.author.id, str(1)]
-                self.internal_data.append(data)
+            if self.internal_data.get(str(message.author.id), False):
+                self.internal_data[str(message.author.id)] += 1
+            else:
+                self.internal_data[str(message.author.id)] = 1
 
         self.save_logs()
         self.save_data()
@@ -184,7 +170,7 @@ class ReaperStatisticCog(commands.Cog):
     def read_data(self):
         if os.path.exists(member_data_path):
             with open(member_data_path, "r") as data_file:
-                temp: list[list] = json.loads(data_file.read())
+                temp = json.loads(data_file.read())
                 self.internal_data = temp
     
     def save_data(self): 
