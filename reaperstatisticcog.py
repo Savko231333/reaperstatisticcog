@@ -190,8 +190,7 @@ class ReaperStatisticCog(commands.Cog):
     def read_logs(self):
         if os.path.exists(logs_path):
             with open(logs_path, "r") as logs:
-                temp: list[list] = json.loads(logs.read())
-                self.internal_logs = temp
+                self.internal_logs = json.loads(logs.read())
     
     def save_logs(self): 
         with open(logs_path, "w+") as logs:
@@ -200,8 +199,7 @@ class ReaperStatisticCog(commands.Cog):
     def read_data(self):
         if os.path.exists(member_data_path):
             with open(member_data_path, "r") as data_file:
-                temp = json.loads(data_file.read())
-                self.internal_data = temp
+                self.internal_data = json.loads(data_file.read())
     
     def save_data(self): 
         with open(member_data_path, "w+") as data_file:
