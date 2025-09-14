@@ -137,12 +137,13 @@ class ReaperStatisticCog(commands.Cog):
             return
 
         channel = discord.utils.get(message.guild.channels, id=self.listener_params["channel_id"])
+        
+        if message.channel is not channel:
+            return
+        
         role = discord.utils.get(message.guild.roles, id=self.listener_params['role_id'])
 
         if message.author is discord.User or role not in message.author.roles:
-            return
-        
-        if message.channel is not channel:
             return
         
         self.read_logs()
