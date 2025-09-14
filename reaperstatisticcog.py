@@ -68,6 +68,23 @@ class ReaperStatisticCog(commands.Cog):
                 else:
                     self.internal_data[str(message.author.id)] = 1
 
+                    
+        for thread in channel.threads:
+            async for message in thread.history(limit=None, after=start_date):
+                if message.author not in role.members:
+                    continue
+
+                if self.listener_params['message_logs'] == "True":
+                    log = [message.author.name, str(message.created_at)]
+                    self.internal_logs.append(log)
+
+                if self.listener_params["message_data"] == "True":
+                    if self.internal_data.get(str(message.author.id), False):
+                        self.internal_data[str(message.author.id)] += 1
+                    else:
+                        self.internal_data[str(message.author.id)] = 1
+
+
         self.save_logs()
         self.save_data()
 
@@ -101,7 +118,12 @@ class ReaperStatisticCog(commands.Cog):
 
         i = 1
         for member in role.members:
-            embed.add_field(name=f"Участник {i}", value=f"{member.mention} Кол-во сообщений: {self.internal_data[str(member.id)]}")
+            message_data = self.internal_data.get(str(member.id), None)
+
+            if message_data is None:
+                return
+            
+            embed.add_field(name=f"Участник {i}", value=f"{member.mention} Кол-во сообщений: {message_data}")
             i += 1
 
         await ctx.respond(embed=embed, ephemeral=True)
@@ -123,8 +145,8 @@ class ReaperStatisticCog(commands.Cog):
             os.remove(member_data_path)
         if os.path.exists(logger_params_path):
             with open(logger_params_path, "w+") as params:
-                params.write(json.dumps(self.default_listener_params))
                 self.listener_params = self.default_listener_params
+                params.write(json.dumps(self.default_listener_params))
 
         await ctx.respond("Слушание канала и информация о пользователях удалена!", ephemeral=True)
 
@@ -137,8 +159,8 @@ class ReaperStatisticCog(commands.Cog):
             return
 
         channel = discord.utils.get(message.guild.channels, id=self.listener_params["channel_id"])
-        
-        if message.channel is not channel:
+
+        if message.channel is not channel and message.channel not in channel.threads:
             return
         
         role = discord.utils.get(message.guild.roles, id=self.listener_params['role_id'])
