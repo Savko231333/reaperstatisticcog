@@ -157,7 +157,10 @@ class ReaperStatisticCog(commands.Cog):
         
         if message.flags.ephemeral:
             return
-
+        
+        if message.guild is None:
+            return
+        
         channel = discord.utils.get(message.guild.channels, id=self.listener_params["channel_id"])
 
         if message.channel is not channel and message.channel not in channel.threads:
