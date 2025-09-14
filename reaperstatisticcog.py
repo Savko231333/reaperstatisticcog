@@ -46,9 +46,10 @@ class ReaperStatisticCog(commands.Cog):
             
         self.internal_data.clear()
         self.internal_logs.clear()
-
-        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        except ValueError:
+            await ctx.respond("Неверный формат времени!", ephemeral=True)
         self.read_logs()
         self.read_data()
 
@@ -138,7 +139,10 @@ class ReaperStatisticCog(commands.Cog):
         channel = discord.utils.get(message.guild.channels, id=self.listener_params["channel_id"])
         role = discord.utils.get(message.guild.roles, id=self.listener_params['role_id'])
 
-        if not role in message.author.roles or message.channel != channel:
+        if message.author is discord.User or role not in message.author.roles:
+            return
+        
+        if message.channel is not channel:
             return
         
         self.read_logs()
