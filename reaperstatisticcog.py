@@ -121,7 +121,7 @@ class ReaperStatisticCog(commands.Cog):
             message_data = self.internal_data.get(str(member.id), None)
 
             if message_data is None:
-                return
+                continue
             
             embed.add_field(name=f"Участник {i}", value=f"{member.mention} Кол-во сообщений: {message_data}")
             i += 1
