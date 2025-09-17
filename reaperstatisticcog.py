@@ -35,7 +35,7 @@ class ReaperStatisticCog(commands.Cog):
                            channel: Option(discord.TextChannel, name="text_channel", description="Текстовый канал для логирования"),
                            start_date_str: Option(str, name="start_date", description="Время для начала логирования в формате 'ГГГГ-ММ-ДД'")):
         await ctx.defer(ephemeral=True)
-
+        
         if self.listener_params["started"] == "True":
             await ctx.respond("История уже была записана", ephemeral=True)
             return
@@ -46,34 +46,41 @@ class ReaperStatisticCog(commands.Cog):
             
         self.internal_data.clear()
         self.internal_logs.clear()
+        
         try:
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
         except ValueError:
-            await ctx.respond("Неверный формат времени!", ephemeral=True)
+            await ctx.respond("Неверный формат времени! Правильный формат ГГГГ-ММ-ДД", ephemeral=True)
+            return
+
         self.read_logs()
         self.read_data()
-
+        i = 0
+        threads = []
 
         async for message in channel.history(limit=None, after=start_date):
-            if message.author not in role.members:
-                continue
-
-            if self.listener_params['message_logs'] == "True":
-                log = [message.author.name, str(message.created_at)]
-                self.internal_logs.append(log)
-
-            if self.listener_params["message_data"] == "True":
-                if self.internal_data.get(str(message.author.id), False):
-                    self.internal_data[str(message.author.id)] += 1
-                else:
-                    self.internal_data[str(message.author.id)] = 1
-
-                    
+            i += 1
+        
         for thread in channel.threads:
-            async for message in thread.history(limit=None, after=start_date):
-                if message.author not in role.members:
-                    continue
+            threads.append(thread)
 
+        print(len(threads))
+
+        arcived_threads = await channel.archived_threads(limit=None).flatten()
+
+        threads += arcived_threads
+
+        print(len(threads))
+
+        for thread in threads:
+            if thread.created_at.date() < start_date.date():
+                threads.remove(thread)
+                continue
+            
+            print(f"{thread.created_at} {thread.name}")
+
+            async for message in thread.history(limit=None, after=start_date).filter(lambda message: message.author in role.members):
+                
                 if self.listener_params['message_logs'] == "True":
                     log = [message.author.name, str(message.created_at)]
                     self.internal_logs.append(log)
@@ -83,7 +90,6 @@ class ReaperStatisticCog(commands.Cog):
                         self.internal_data[str(message.author.id)] += 1
                     else:
                         self.internal_data[str(message.author.id)] = 1
-
 
         self.save_logs()
         self.save_data()
@@ -101,32 +107,39 @@ class ReaperStatisticCog(commands.Cog):
     )
     async def show_message_count(self, ctx: discord.ApplicationContext):
         if self.listener_params['started'] == "False":
-            await ctx.respond("Вы не начали слушание канала")
+            await ctx.respond("Вы не начали слушание канала", ephemeral=True)
             return
         
         channel = discord.utils.get(ctx.guild.channels, id=self.listener_params["channel_id"])
         role = discord.utils.get(ctx.guild.roles, id=self.listener_params['role_id'])
         start_date = self.listener_params['start_date']
-        embed = discord.Embed(
+        
+        headembed = discord.Embed(
             title=role.name,
             description=f"Кол-во сообщений каждого участника роли {role.name} в канале {channel.name} за период с {start_date} по {datetime.now().strftime("%Y-%m-%d")}",
             color=discord.Color.dark_gray() 
         )
         await ctx.defer(ephemeral=True)
-
+        embeds = []
+        embeds.append(headembed)
         self.read_data()
 
         i = 1
-        for member in role.members:
-            message_data = self.internal_data.get(str(member.id), None)
-
-            if message_data is None:
-                continue
-            
-            embed.add_field(name=f"Участник {i}", value=f"{member.mention} Кол-во сообщений: {message_data}")
+        s = 0
+        k = 0
+        for key in self.internal_data.keys():
+            member = ctx.guild.get_member(int(key))
+            embeds[s].add_field(name=f"Участник {i}", value=f"{member.mention} Кол-во сообщений: {self.internal_data[key]}")
+            k += 1
             i += 1
+            if k >= 25:
+                k = 0
+                embeds.append(discord.Embed())
+                s += 1
 
-        await ctx.respond(embed=embed, ephemeral=True)
+        for embed in embeds:
+            await ctx.respond(embed=embed, ephemeral=True)
+
 
     @commands.slash_command(
     name="delete_listener",
@@ -168,7 +181,7 @@ class ReaperStatisticCog(commands.Cog):
         
         role = discord.utils.get(message.guild.roles, id=self.listener_params['role_id'])
 
-        if message.author is discord.User or role not in message.author.roles:
+        if type(message.author) is discord.user.User or role not in message.author.roles:
             return
         
         self.read_logs()
