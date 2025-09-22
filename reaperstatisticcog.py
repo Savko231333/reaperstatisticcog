@@ -55,29 +55,24 @@ class ReaperStatisticCog(commands.Cog):
 
         self.read_logs()
         self.read_data()
-        i = 0
         threads = []
-
-        async for message in channel.history(limit=None, after=start_date):
-            i += 1
         
         for thread in channel.threads:
             threads.append(thread)
 
-        print(len(threads))
-
-        arcived_threads = await channel.archived_threads(limit=None).flatten()
-
+        try:
+            arcived_threads = await channel.archived_threads(limit=None).flatten()
+        except discord.Forbidden as e:
+            ctx.respond("Нет доступа для просмотра веток", ephemeral=True)
+        except Exception as e:
+            ctx.respond("Неизвестная ошибка", ephemeral=True)
+        
         threads += arcived_threads
-
-        print(len(threads))
 
         for thread in threads:
             if thread.created_at.date() < start_date.date():
                 threads.remove(thread)
                 continue
-            
-            print(f"{thread.created_at} {thread.name}")
 
             async for message in thread.history(limit=None, after=start_date).filter(lambda message: message.author in role.members):
                 
@@ -123,18 +118,27 @@ class ReaperStatisticCog(commands.Cog):
         embeds = []
         embeds.append(headembed)
         self.read_data()
-
-        i = 1
+        
+        data_items = list(self.internal_data.items())
+        items = data_items
+        border = 25
         s = 0
-        k = 0
-        for key in self.internal_data.keys():
-            member = ctx.guild.get_member(int(key))
-            embeds[s].add_field(name=f"Участник {i}", value=f"{member.mention} Кол-во сообщений: {self.internal_data[key]}")
-            k += 1
-            i += 1
-            if k >= 25:
-                k = 0
+        i = 0
+
+        while i != len(data_items):
+
+            for key, value in items[0:25]:
+                if i == len(data_items):
+                    break
+
+                member = ctx.guild.get_member(int(key))
+                embeds[s].add_field(name=f"Участник {i + 1}", value=f"{member.mention} Кол-во сообщений: {value}")
+                i += 1
+
+            if i % 25 == 0:
                 embeds.append(discord.Embed())
+                items = data_items[border:border+25]
+                border += 25
                 s += 1
 
         for embed in embeds:
