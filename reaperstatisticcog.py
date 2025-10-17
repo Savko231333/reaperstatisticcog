@@ -142,32 +142,48 @@ class ReaperStatisticCog(commands.Cog):
             await ctx.respond("Ошибка роли", ephemeral=True)
             return
         
-        punished = 0
-        pardoned = 0
-        veto = 0
+        reports_data = {"": [0, 0]}
+
+        punished_total = 0
+        pardoned_total = 0
+
+        reports_data.clear()
         async for message in channel.history(limit=None, after=period_date):
             if not message.reactions:
                 continue
             
             if type(message.author) is discord.user.User or role not in message.author.roles:
                 continue
-            
+
+
             if str(message.reactions[0]) == "⛔":
-                punished += 1
+                if reports_data.get(str(message.author.id), False):
+                    reports_data[str(message.author.id)][0] += 1
+                else:
+                    reports_data[str(message.author.id)] = [1, 0]
+
+                punished_total += 1
                 continue
             
             if str(message.reactions[0]) == "🙏":
-                pardoned += 1
+                if reports_data.get(str(message.author.id), False):
+                    reports_data[str(message.author.id)][1] += 1
+                else:
+                    reports_data[str(message.author.id)] = [0, 1]
+                    
+                pardoned_total += 1
                 continue
 
-            if str(message.reactions[0]) == "❌":
-                veto += 1
-                continue
 
-        embed = discord.Embed()
-        embed.add_field(name="Наказаных", value=punished)
-        embed.add_field(name="Помилованых", value=pardoned)
-        embed.add_field(name="Отказаных", value=veto)
+        embed = discord.Embed(
+            title="Жнец-stat",
+            description="Количество разобранных репортов всех жнецов за указанный период."
+        )
+        for key, value in reports_data.items():
+            member = ctx.guild.get_member(int(key))
+            embed.add_field(name=f"{member.display_name}", value=f"{member.mention} Наказаний: {value[0]}; Помилований: {value[1]}")
+        
+        embed.add_field(name=f"Суммарно", value=f"{punished_total} наказаний, {pardoned_total} помилований.")
         await ctx.respond(embed=embed, ephemeral=True)
 
     @commands.slash_command(
