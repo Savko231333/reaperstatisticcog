@@ -66,9 +66,9 @@ class ReaperStatisticCog(commands.Cog):
         try:
             arcived_threads = await channel.archived_threads(limit=None).flatten()
         except discord.Forbidden as e:
-            ctx.respond("Нет доступа для просмотра веток", ephemeral=True)
+            await ctx.respond("Нет доступа для просмотра веток", ephemeral=True)
         except Exception as e:
-            ctx.respond("Неизвестная ошибка", ephemeral=True)
+            await ctx.respond("Неизвестная ошибка", ephemeral=True)
         
         threads += arcived_threads
 
