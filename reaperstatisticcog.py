@@ -16,7 +16,7 @@ class ReaperStatisticCog(commands.Cog):
     internal_data = {str: int}
     internal_logs = [[]]
     reaper_id = 1191502444421730385
-
+    juniper_id = 1074652976033046541
     @commands.Cog.listener()
     async def on_ready(self):
 
@@ -142,6 +142,11 @@ class ReaperStatisticCog(commands.Cog):
             await ctx.respond("Ошибка роли", ephemeral=True)
             return
         
+        juniper_role = discord.utils.get(ctx.guild.roles, id=self.juniper_id)
+        if juniper_role is None:
+            await ctx.respond("Ошибка роли", ephemeral=True)
+            return
+        
         reports_data = {"": [0, 0]}
 
         punished_total = 0
@@ -153,23 +158,34 @@ class ReaperStatisticCog(commands.Cog):
                 continue
             
             if type(message.author) is discord.user.User or role not in message.author.roles:
-                continue
+                if juniper_role not in message.author.roles:
+                    continue
 
 
             if str(message.reactions[0]) == "⛔":
-                if reports_data.get(str(message.author.id), False):
-                    reports_data[str(message.author.id)][0] += 1
-                else:
-                    reports_data[str(message.author.id)] = [1, 0]
+                async for user in message.reactions[0].users():
+                    if type(user) is discord.user.User or role not in user.roles:
+                        continue
+
+                    if reports_data.get(str(user.id), False):
+                        reports_data[str(user.id)][0] += 1
+                    else:
+                        reports_data[str(user.id)] = [1, 0]
+
 
                 punished_total += 1
                 continue
             
             if str(message.reactions[0]) == "🙏":
-                if reports_data.get(str(message.author.id), False):
-                    reports_data[str(message.author.id)][1] += 1
-                else:
-                    reports_data[str(message.author.id)] = [0, 1]
+                async for user in message.reactions[0].users():
+                    if type(user) is discord.user.User or role not in user.roles:
+                        continue
+
+                    if reports_data.get(str(user.id), False):
+                        reports_data[str(user.id)][1] += 1
+                    else:
+                        reports_data[str(user.id)] = [0, 1]
+
                     
                 pardoned_total += 1
                 continue
