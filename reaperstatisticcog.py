@@ -10,10 +10,13 @@ member_data_path = os.path.join(os.path.dirname(__file__), "member_data.json")
 logger_params_path = os.path.join(os.path.dirname(__file__), "logger_params.json")
 logs_path = os.path.join(os.path.dirname(__file__), "logs.json")
 class ReaperStatisticCog(commands.Cog):
-    default_listener_params = {"started": "False", "channel_id": "", "role_id": "", "start_date": "", "message_logs": "True", "message_data": "True"}
+    default_listener_params = {"started": "False", "channel_id": "", "role_id": "", "start_date": "", "message_logs": "True", "message_data": "True",
+                               "report_channel_id": ""}
     listener_params = default_listener_params
     internal_data = {str: int}
     internal_logs = [[]]
+    reaper_id = 1191502444421730385
+
     @commands.Cog.listener()
     async def on_ready(self):
 
@@ -95,6 +98,77 @@ class ReaperStatisticCog(commands.Cog):
 
         await ctx.respond(f"История записана! Логирование: {self.listener_params['message_logs']}. Данные пользователей: {self.listener_params["message_data"]}", ephemeral=True)
 
+
+    @commands.slash_command(
+        name="set_report_channel",
+        description="Задать канал для счёта репортов"
+    )
+    async def set_report_channel(self, ctx: discord.ApplicationContext,
+                                 channel: Option(discord.TextChannel, name="text_channel", description="Текстовый канал репортов")):
+        
+        if self.listener_params["report_channel_id"]:
+            self.listener_params["report_channel_id"] = channel.id
+            await ctx.respond("Канал репортов успешно задан", ephemeral=True)
+        else:
+            self.listener_params["report_channel_id"] = channel.id
+            await ctx.respond("Канал репортов успешно перезаписан", ephemeral=True)
+
+        with open(logger_params_path, "w") as params:
+            params.write(json.dumps(self.listener_params))
+        
+    @commands.slash_command(
+        name="show_reports_count",
+        description="Показать количество репортов за выбранный период"
+    )
+    async def show_reports_count(self, ctx: discord.ApplicationContext,
+                                 period: Option(str, name="period", description="Период 'ГГГГ-ММ-ДД'")):
+        await ctx.defer(ephemeral=True)
+
+        try:
+            period_date = datetime.strptime(period, "%Y-%m-%d")
+        except ValueError:
+            await ctx.respond("Неверный формат времени! Правильный формат ГГГГ-ММ-ДД", ephemeral=True)
+            return
+        
+        channel = discord.utils.get(ctx.guild.channels, id=self.listener_params["report_channel_id"])
+
+        if channel is None:
+            await ctx.respond("Неверный канал репортов", ephemeral=True)
+            return
+        
+        role = discord.utils.get(ctx.guild.roles, id=self.reaper_id)
+
+        if role is None:
+            await ctx.respond("Ошибка роли", ephemeral=True)
+            return
+        
+        punished = 0
+        pardoned = 0
+        veto = 0
+        async for message in channel.history(limit=None, after=period_date):
+            if not message.reactions:
+                continue
+            
+            if type(message.author) is discord.user.User or role not in message.author.roles:
+                continue
+            
+            if str(message.reactions[0]) == "⛔":
+                punished += 1
+                continue
+            
+            if str(message.reactions[0]) == "🙏":
+                pardoned += 1
+                continue
+
+            if str(message.reactions[0]) == "❌":
+                veto += 1
+                continue
+
+        embed = discord.Embed()
+        embed.add_field(name="Наказаных", value=punished)
+        embed.add_field(name="Помилованых", value=pardoned)
+        embed.add_field(name="Отказаных", value=veto)
+        await ctx.respond(embed=embed, ephemeral=True)
 
     @commands.slash_command(
     name="show_listener_messagescount",
@@ -180,7 +254,7 @@ class ReaperStatisticCog(commands.Cog):
         
         channel = discord.utils.get(message.guild.channels, id=self.listener_params["channel_id"])
 
-        if message.channel is not channel and message.channel not in channel.threads:
+        if message.channel is not channel or channel.threads is None or message.channel not in channel.threads:
             return
         
         role = discord.utils.get(message.guild.roles, id=self.listener_params['role_id'])
